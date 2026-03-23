@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Árvores do Campus — IFES Cachoeiro</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green-deep: #1a3a2a;
+    --green-mid: #2d6a4f;
+    --green-light: #74c69d;
+    --green-pale: #d8f3dc;
+    --cream: #f8f5ef;
+    --earth: #6b4f3a;
+    --earth-light: #c9a87c;
+    --text: #1c2b22;
+    --text-muted: #5a7060;
+    --white: #ffffff;
+    --serif: 'DM Serif Display', Georgia, serif;
+    --sans: 'DM Sans', system-ui, sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--cream);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--green-deep);
+    color: var(--white);
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .header-bg {
+    position: absolute;
+    inset: 0;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M30 5 C18 5 8 15 8 27 C8 35 12 42 18 46 L18 55 L42 55 L42 46 C48 42 52 35 52 27 C52 15 42 5 30 5Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background-size: 80px 80px;
+  }
+
+  .header-inner {
+    position: relative;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 4rem 2rem 3rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 2rem;
+  }
+
+  .header-tag {
+    display: inline-block;
+    background: var(--green-light);
+    color: var(--green-deep);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 1rem;
+  }
+
+  header h1 {
+    font-family: var(--serif);
+    font-size: clamp(2.2rem, 5vw, 3.4rem);
+    line-height: 1.15;
+    font-weight: 400;
+    margin-bottom: 0.75rem;
+  }
+
+  header h1 em {
+    color: var(--green-light);
+    font-style: italic;
+  }
+
+  header p {
+    color: rgba(255,255,255,0.65);
+    font-size: 1rem;
+    font-weight: 300;
+    max-width: 500px;
+  }
+
+  .header-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: right;
+  }
+
+  .stat-pill {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 12px 18px;
+  }
+
+  .stat-pill .num {
+    font-family: var(--serif);
+    font-size: 2rem;
+    color: var(--green-light);
+    display: block;
+    line-height: 1;
+  }
+
+  .stat-pill .label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ── NAV TABS ── */
+  .nav-bar {
+    background: var(--green-deep);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .nav-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    gap: 0;
+  }
+
+  .nav-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 14px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+
+  .nav-btn:hover { color: rgba(255,255,255,0.85); }
+  .nav-btn.active {
+    color: var(--green-light);
+    border-bottom-color: var(--green-light);
+  }
+
+  /* ── MAIN LAYOUT ── */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem 4rem;
+  }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ── MAPA ── */
+  #map-container {
+    background: var(--white);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.06);
+    margin-bottom: 1.5rem;
+  }
+
+  #map {
+    height: 480px;
+    width: 100%;
+  }
+
+  .map-legend {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid #eee;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    align-items: center;
+  }
+
+  .map-legend span {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── FILTRO ── */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .filter-chip {
+    background: var(--white);
+    border: 1px solid #d0d0c8;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: var(--sans);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-chip:hover {
+    border-color: var(--green-mid);
+    color: var(--green-mid);
+  }
+
+  .filter-chip.active {
+    background: var(--green-mid);
+    border-color: var(--green-mid);
+    color: var(--white);
+  }
+
+  /* ── GRID DE FICHAS ── */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .tree-card {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 1.25rem;
+    border: 1px solid #e8e8e0;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tree-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 14px 14px 0 0;
+  }
+
+  .tree-card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+
+  .card-number {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .card-name {
+    font-family: var(--serif);
+    font-size: 1.35rem;
+    color: var(--text);
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+
+  .card-species {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+
+  .card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .meta-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .meta-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .area-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-weight: 500;
+    margin-top: 10px;
+  }
+
+  /* ── TABELA ── */
+  .table-wrap {
+    background: var(--white);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #e8e8e0;
+  }
+
+  .search-box {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e8e8e0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .search-box input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text);
+    background: transparent;
+  }
+
+  .search-box input::placeholder { color: var(--text-muted); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  thead th {
+    background: #f5f5f0;
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    border-bottom: 1px solid #e8e8e0;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  thead th:hover { color: var(--green-mid); }
+
+  tbody tr {
+    border-bottom: 1px solid #f0f0ea;
+    transition: background 0.12s;
+  }
+
+  tbody tr:hover { background: #f9f9f5; }
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody td {
+    padding: 12px 16px;
+    color: var(--text);
+    vertical-align: middle;
+  }
+
+  .td-species { font-style: italic; color: var(--text-muted); }
+  .td-num { color: var(--text-muted); font-size: 13px; }
+
+  /* ── SOBRE ── */
+  .sobre-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 0;
+  }
+
+  .sobre-card {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 1.5rem;
+    border: 1px solid #e8e8e0;
+  }
+
+  .sobre-card h3 {
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    color: var(--green-deep);
+  }
+
+  .sobre-card p, .sobre-card li {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+
+  .sobre-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sobre-card li::before {
+    content: '→ ';
+    color: var(--green-mid);
+  }
+
+  .species-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0ea;
+    font-size: 14px;
+  }
+
+  .species-stat:last-child { border-bottom: none; }
+  .species-stat .sname { color: var(--text-muted); font-style: italic; }
+  .species-stat .scount {
+    background: var(--green-pale);
+    color: var(--green-mid);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* Custom popup */
+  .leaflet-popup-content-wrapper {
+    border-radius: 12px !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
+  }
+
+  .popup-body { font-family: var(--sans); }
+  .popup-area {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .popup-name { font-family: var(--serif); font-size: 1.15rem; margin-bottom: 2px; }
+  .popup-species { font-style: italic; font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+  .popup-trees { display: flex; flex-direction: column; gap: 3px; }
+  .popup-tree { font-size: 12px; color: var(--text); padding: 3px 0; border-bottom: 1px solid #f0f0ea; }
+  .popup-tree:last-child { border-bottom: none; }
+
+  @media (max-width: 640px) {
+    .header-inner { grid-template-columns: 1fr; }
+    .header-stats { flex-direction: row; text-align: left; }
+    .sobre-grid { grid-template-columns: 1fr; }
+    .cards-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-bg"></div>
+  <div class="header-inner">
+    <div>
+      <span class="header-tag">IFES Cachoeiro de Itapemirim · 2025</span>
+      <h1>Árvores do<br><em>Campus</em></h1>
+      <p>Levantamento florístico das espécies arbóreas presentes no campus do Instituto Federal do Espírito Santo — Cachoeiro de Itapemirim.</p>
+    </div>
+    <div class="header-stats">
+      <div class="stat-pill">
+        <span class="num">23</span>
+        <span class="label">indivíduos</span>
+      </div>
+      <div class="stat-pill">
+        <span class="num">8</span>
+        <span class="label">espécies</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav-bar">
+  <div class="nav-inner">
+    <button class="nav-btn active" onclick="showSection('mapa', this)">🗺 Mapa</button>
+    <button class="nav-btn" onclick="showSection('fichas', this)">🌿 Fichas</button>
+    <button class="nav-btn" onclick="showSection('tabela', this)">📋 Tabela</button>
+    <button class="nav-btn" onclick="showSection('sobre', this)">ℹ Sobre</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- MAPA -->
+  <section id="sec-mapa" class="section active">
+    <div class="filter-bar" id="area-filters">
+      <button class="filter-chip active" onclick="filterArea('todas', this)">Todas as áreas</button>
+    </div>
+    <div id="map-container">
+      <div id="map"></div>
+      <div class="map-legend">
+        <span>Legenda:</span>
+        <div class="legend-item"><div class="legend-dot" style="background:#2d6a4f"></div> Entre os Blocos</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6b4f3a"></div> Laterais do Campus</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#1a6b8a"></div> Lateral da Quadra</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#8a5a1a"></div> Outros</div>
+        <span style="margin-left:auto; font-size:11px;">Clique nos marcadores para mais informações</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- FICHAS -->
+  <section id="sec-fichas" class="section">
+    <div class="filter-bar" id="species-filters">
+      <button class="filter-chip active" onclick="filterSpecies('todas', this)">Todas</button>
+    </div>
+    <div class="cards-grid" id="cards-container"></div>
+  </section>
+
+  <!-- TABELA -->
+  <section id="sec-tabela" class="section">
+    <div class="table-wrap">
+      <div class="search-box">
+        <svg class="meta-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color:#aaa;width:18px;height:18px;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input type="text" id="search-input" placeholder="Buscar por nome, espécie ou localização..." oninput="filterTable()">
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('o')">#</th>
+            <th onclick="sortTable('Nome')">Nome popular</th>
+            <th onclick="sortTable('Espécie')">Nome científico</th>
+            <th onclick="sortTable('Referência')">Referência</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SOBRE -->
+  <section id="sec-sobre" class="section">
+    <div class="sobre-grid">
+      <div class="sobre-card">
+        <h3>Sobre o levantamento</h3>
+        <p>Este mapeamento foi realizado por estudantes do IFES — Cachoeiro de Itapemirim como atividade de pesquisa de campo. Foram percorridas as diferentes áreas do campus identificando e catalogando os indivíduos arbóreos presentes.</p>
+        <br>
+        <p>Os dados coletados incluem nome popular, nome científico, ponto de referência e coordenadas geográficas aproximadas de cada indivíduo.</p>
+      </div>
+      <div class="sobre-card">
+        <h3>Áreas mapeadas</h3>
+        <ul>
+          <li>Entre os Blocos</li>
+          <li>Laterais do Campus</li>
+          <li>Lateral da Quadra</li>
+          <li>Lateral CF / CETEM</li>
+          <li>Estacionamento na Entrada</li>
+          <li>Divisa da Empresa</li>
+          <li>Guarita</li>
+        </ul>
+      </div>
+      <div class="sobre-card" style="grid-column: 1 / -1;">
+        <h3>Espécies encontradas</h3>
+        <div id="species-list"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+const arvores = [
+  {o:1,  Nome:"Pé de Jambo I",    Espécie:"Syzygium jambos",       Referência:"Entre os Blocos",          lat:-20.802526, lng:-41.154251},
+  {o:2,  Nome:"Pé de Jambo II",   Espécie:"Syzygium jambos",       Referência:"Entre os Blocos",          lat:-20.802527, lng:-41.154573},
+  {o:3,  Nome:"Pé de Jambo III",  Espécie:"Syzygium jambos",       Referência:"Entre os Blocos",          lat:-20.802346, lng:-41.154232},
+  {o:4,  Nome:"Pé de Jambo IV",   Espécie:"Syzygium jambos",       Referência:"Entre os Blocos",          lat:-20.802354, lng:-41.154106},
+  {o:5,  Nome:"Pé de Jambo V",    Espécie:"Syzygium jambos",       Referência:"Entre os Blocos",          lat:-20.802520, lng:-41.154629},
+  {o:6,  Nome:"Pé de Acerola I",  Espécie:"Malpighia emarginata",  Referência:"Laterais do Campus",       lat:-20.803680, lng:-41.154842},
+  {o:7,  Nome:"Pé de Acerola II", Espécie:"Malpighia emarginata",  Referência:"Laterais do Campus",       lat:-20.803685, lng:-41.154862},
+  {o:8,  Nome:"Pé de Acerola III",Espécie:"Malpighia emarginata",  Referência:"Laterais do Campus",       lat:-20.803690, lng:-41.154822},
+  {o:9,  Nome:"Pé de Acerola IV", Espécie:"Malpighia emarginata",  Referência:"Laterais do Campus",       lat:-20.803675, lng:-41.154870},
+  {o:10, Nome:"Pé de Limão I",    Espécie:"Citrus limon",          Referência:"Laterais do Campus",       lat:-20.802552, lng:-41.153928},
+  {o:11, Nome:"Pé de Limão II",   Espécie:"Citrus limon",          Referência:"Laterais do Campus",       lat:-20.802557, lng:-41.153940},
+  {o:12, Nome:"Pé de Limão III",  Espécie:"Citrus limon",          Referência:"Laterais do Campus",       lat:-20.802562, lng:-41.153950},
+  {o:13, Nome:"Pé de Manga I",    Espécie:"Mangifera indica L.",   Referência:"Lateral da Quadra",        lat:-20.802014, lng:-41.154384},
+  {o:14, Nome:"Pé de Manga II",   Espécie:"Mangifera indica L.",   Referência:"Lateral da Quadra",        lat:-20.802018, lng:-41.154394},
+  {o:15, Nome:"Pé de Manga III",  Espécie:"Mangifera indica L.",   Referência:"Lateral da Quadra",        lat:-20.802022, lng:-41.154374},
+  {o:16, Nome:"Pé de Manga IV",   Espécie:"Mangifera indica L.",   Referência:"Lateral da Quadra",        lat:-20.802008, lng:-41.154404},
+  {o:17, Nome:"Pé de Laranja I",  Espécie:"Citrus sinensis",       Referência:"Lateral CF",               lat:-20.801594, lng:-41.153770},
+  {o:18, Nome:"Pé de Laranja II", Espécie:"Citrus sinensis",       Referência:"CETEM",                    lat:-20.801598, lng:-41.153780},
+  {o:19, Nome:"Pé de Munguba I",  Espécie:"Pachira aquatica",      Referência:"Estacionamento na Entrada",lat:-20.803088, lng:-41.155495},
+  {o:20, Nome:"Pé de Mamão I",    Espécie:"Carica papaya",         Referência:"Divisa da Empresa",        lat:-20.803628, lng:-41.155236},
+  {o:21, Nome:"Pé de Mamão II",   Espécie:"Carica papaya",         Referência:"Divisa da Empresa",        lat:-20.803632, lng:-41.155246},
+  {o:22, Nome:"Pé de Banana I",   Espécie:"Musa spp.",             Referência:"Guarita",                  lat:-20.801942, lng:-41.155297},
+  {o:23, Nome:"Pé de Banana II",  Espécie:"Musa spp.",             Referência:"Guarita",                  lat:-20.801946, lng:-41.155307},
+];
+
+const areaColors = {
+  "Entre os Blocos":           "#2d6a4f",
+  "Laterais do Campus":        "#6b4f3a",
+  "Lateral da Quadra":         "#1a6b8a",
+  "Lateral CF":                "#8a5a1a",
+  "CETEM":                     "#8a5a1a",
+  "Estacionamento na Entrada": "#7a3a8a",
+  "Divisa da Empresa":         "#8a3a3a",
+  "Guarita":                   "#3a6a8a",
+};
+
+function getColor(ref) {
+  return areaColors[ref.trim()] || "#555";
+}
+
+function getBaseName(nome) {
+  return nome.replace(/ (I|II|III|IV|V|VI)$/, '').trim();
+}
+
+// ── MAP ──
+let map, markers = [], activeAreaFilter = 'todas';
+
+function initMap() {
+  map = L.map('map').setView([-20.8025, -41.1545], 17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 20
+  }).addTo(map);
+
+  // Group by area for popup
+  const byArea = {};
+  arvores.forEach(a => {
+    const key = a.Referência.trim();
+    if (!byArea[key]) byArea[key] = [];
+    byArea[key].push(a);
+  });
+
+  // One marker per unique coordinate cluster
+  const placed = {};
+  arvores.forEach(tree => {
+    const key = `${tree.lat.toFixed(5)},${tree.lng.toFixed(5)}`;
+    if (!placed[key]) {
+      placed[key] = {lat: tree.lat, lng: tree.lng, area: tree.Referência.trim(), trees: []};
+    }
+    placed[key].trees.push(tree);
+  });
+
+  Object.values(placed).forEach(pt => {
+    const color = getColor(pt.area);
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:34px;height:34px;border-radius:50%;
+        background:${color};border:3px solid white;
+        display:flex;align-items:center;justify-content:center;
+        box-shadow:0 2px 8px rgba(0,0,0,0.25);
+        font-size:14px;cursor:pointer;
+      ">🌳</div>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17],
+    });
+
+    const treesHtml = pt.trees.map(t =>
+      `<div class="popup-tree">
+        <strong style="font-size:13px;">${t.Nome}</strong>
+        <div class="td-species" style="font-style:italic;font-size:11px;color:#888;">${t.Espécie}</div>
+      </div>`
+    ).join('');
+
+    const popup = `
+      <div class="popup-body" style="min-width:200px;max-width:260px;">
+        <div class="popup-area">${pt.area}</div>
+        <div class="popup-trees">${treesHtml}</div>
+      </div>`;
+
+    const m = L.marker([pt.lat, pt.lng], {icon}).addTo(map);
+    m.bindPopup(popup, {maxWidth: 280});
+    m.areaKey = pt.area;
+    markers.push(m);
+  });
+
+  // Build area filter chips
+  const areas = [...new Set(arvores.map(a => a.Referência.trim()))];
+  const filterBar = document.getElementById('area-filters');
+  areas.forEach(area => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-chip';
+    btn.textContent = area;
+    btn.onclick = function() { filterArea(area, this); };
+    filterBar.appendChild(btn);
+  });
+}
+
+function filterArea(area, btn) {
+  activeAreaFilter = area;
+  document.querySelectorAll('#area-filters .filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  markers.forEach(m => {
+    if (area === 'todas' || m.areaKey === area) {
+      m.addTo(map);
+    } else {
+      m.remove();
+    }
+  });
+}
+
+// ── CARDS ──
+const speciesMap = {};
+arvores.forEach(a => {
+  const base = getBaseName(a.Nome);
+  if (!speciesMap[base]) speciesMap[base] = [];
+  speciesMap[base].push(a);
+});
+
+function buildCards(filter = 'todas') {
+  const container = document.getElementById('cards-container');
+  container.innerHTML = '';
+  const entries = filter === 'todas'
+    ? Object.entries(speciesMap)
+    : Object.entries(speciesMap).filter(([k]) => k === filter);
+
+  entries.forEach(([baseName, trees]) => {
+    const color = getColor(trees[0].Referência.trim());
+    const card = document.createElement('div');
+    card.className = 'tree-card';
+    card.style.setProperty('--card-color', color);
+    card.querySelector && null;
+    card.innerHTML = `
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${color};border-radius:14px 14px 0 0;"></div>
+      <div class="card-number">${trees.map(t => `#${String(t.o).padStart(2,'0')}`).join(' · ')}</div>
+      <div class="card-name">${baseName}</div>
+      <div class="card-species">${trees[0].Espécie}</div>
+      <div class="card-meta">
+        <div class="meta-row">
+          <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          ${trees[0].Referência.trim()}
+        </div>
+        <div class="meta-row">
+          <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/>
+          </svg>
+          ${trees.length} ${trees.length === 1 ? 'indivíduo' : 'indivíduos'}
+        </div>
+      </div>
+      <span class="area-badge" style="background:${color}18;color:${color};">${trees[0].Referência.trim()}</span>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function buildSpeciesFilters() {
+  const bar = document.getElementById('species-filters');
+  Object.keys(speciesMap).forEach(base => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-chip';
+    btn.textContent = base;
+    btn.onclick = function() { filterSpecies(base, this); };
+    bar.appendChild(btn);
+  });
+}
+
+function filterSpecies(filter, btn) {
+  document.querySelectorAll('#species-filters .filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildCards(filter);
+}
+
+// ── TABELA ──
+let tableData = [...arvores];
+let sortKey = 'o', sortDir = 1;
+
+function renderTable(data) {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = data.map(a => `
+    <tr>
+      <td class="td-num">${String(a.o).padStart(2,'0')}</td>
+      <td>${a.Nome}</td>
+      <td class="td-species">${a.Espécie}</td>
+      <td>${a.Referência.trim()}</td>
+    </tr>
+  `).join('');
+}
+
+function filterTable() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const filtered = arvores.filter(a =>
+    a.Nome.toLowerCase().includes(q) ||
+    a.Espécie.toLowerCase().includes(q) ||
+    a.Referência.toLowerCase().includes(q)
+  );
+  renderTable(filtered);
+}
+
+function sortTable(key) {
+  if (sortKey === key) sortDir *= -1;
+  else { sortKey = key; sortDir = 1; }
+  const sorted = [...arvores].sort((a, b) => {
+    const va = a[key], vb = b[key];
+    if (typeof va === 'number') return sortDir * (va - vb);
+    return sortDir * String(va).localeCompare(String(vb), 'pt-BR');
+  });
+  renderTable(sorted);
+}
+
+// ── SOBRE ──
+function buildSobre() {
+  const counts = {};
+  arvores.forEach(a => {
+    counts[a.Espécie] = (counts[a.Espécie] || 0) + 1;
+  });
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  const container = document.getElementById('species-list');
+  container.innerHTML = sorted.map(([sp, count]) => {
+    const base = Object.keys(speciesMap).find(k => speciesMap[k][0].Espécie === sp) || sp;
+    return `<div class="species-stat">
+      <div>
+        <div style="font-size:14px;color:var(--text)">${base}</div>
+        <div class="sname">${sp}</div>
+      </div>
+      <span class="scount">${count} ind.</span>
+    </div>`;
+  }).join('');
+}
+
+// ── NAV ──
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'mapa') setTimeout(() => map && map.invalidateSize(), 100);
+}
+
+// ── INIT ──
+initMap();
+buildCards();
+buildSpeciesFilters();
+renderTable(arvores);
+buildSobre();
+</script>
+</body>
+</html>
